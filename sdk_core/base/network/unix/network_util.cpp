@@ -23,6 +23,7 @@
 //
 #ifndef WIN32
 #include "base/network/network_util.h"
+#include <errno.h>
 #include <ifaddrs.h>
 #include <string>
 #include <string.h>
@@ -85,7 +86,7 @@ socket_t CreateSocket(uint16_t port, bool nonblock, bool reuse_port, bool is_bro
 
   status = bind(sock, (const struct sockaddr *)&servaddr, sizeof(servaddr));
   if (status != 0) {
-    printf("bind failed\n");
+    perror("bind failed\n");
     close(sock);
     return -1;
   }
