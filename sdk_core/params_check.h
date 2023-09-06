@@ -34,6 +34,8 @@
 #include <memory>
 #include <vector>
 
+#include "command_handler/build_request.h"
+
 namespace livox {
 namespace lidar {
 
@@ -44,6 +46,7 @@ class ParamsCheck {
   bool Check();
  private:
   bool CheckLidarIp();
+  bool CheckLidarMulticastIp();
   void CheckLidarPort();
   void CheckPort(const uint8_t dev_type, LivoxLidarNetInfo& lidar_net_info);
  private:

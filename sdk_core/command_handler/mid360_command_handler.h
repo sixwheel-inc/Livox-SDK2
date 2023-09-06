@@ -51,8 +51,7 @@ class Mid360CommandHandler : public CommandHandler {
   ~Mid360CommandHandler() {}
   virtual bool Init(bool is_view);
 
-  virtual bool Init(std::shared_ptr<std::vector<LivoxLidarCfg>>& lidars_cfg_ptr,
-    std::shared_ptr<std::vector<LivoxLidarCfg>>& custom_lidars_cfg_ptr);
+  virtual bool Init(const std::map<uint32_t, LivoxLidarCfg>& custom_lidars_cfg_map);
   virtual void Handle(const uint32_t handle, uint16_t lidar_port, const Command& command);
   virtual void UpdateLidarCfg(const ViewLidarIpInfo& view_lidar_info);
   virtual void UpdateLidarCfg(const uint32_t handle, const uint16_t lidar_cmd_port);
@@ -63,7 +62,6 @@ class Mid360CommandHandler : public CommandHandler {
   void AddDevice(const uint32_t handle);
  private:
   void SetCustomLidar(const uint32_t handle, const uint16_t lidar_cmd_port, const LivoxLidarCfg& lidar_cfg);
-  void SetGeneralLidar(const uint32_t handle, const uint16_t lidar_cmd_port);
   void SetViewLidar(const ViewLidarIpInfo& view_lidar_info);
   livox_status SendCommand(const Command &command, const uint16_t lidar_cmd_port);
 
@@ -82,8 +80,7 @@ class Mid360CommandHandler : public CommandHandler {
   std::unique_ptr<CommPort> comm_port_;
   std::mutex device_mutex_;
   std::set<uint32_t> devices_;
-  std::map<uint32_t, LivoxLidarCfg> lidars_custom_;
-  LivoxLidarCfg general_lidar_cfg_;
+  std::map<uint32_t, LivoxLidarCfg> custom_lidars_;
   bool is_view_;
 };
 

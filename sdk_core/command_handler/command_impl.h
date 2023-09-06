@@ -90,6 +90,7 @@ class CommandImpl {
 
   static livox_status EnableLivoxLidarGlassHeat(uint32_t handle, LivoxLidarAsyncControlCallback cb, void* client_data);
   static livox_status DisableLivoxLidarGlassHeat(uint32_t handle, LivoxLidarAsyncControlCallback cb, void* client_data);
+  
   static livox_status SetLivoxLidarGlassHeat(uint32_t handle, LivoxLidarGlassHeat glass_heat, LivoxLidarAsyncControlCallback cb, void* client_data);
 
   static livox_status EnableLivoxLidarImuData(uint32_t handle, LivoxLidarAsyncControlCallback cb, void* client_data);
@@ -98,9 +99,14 @@ class CommandImpl {
   static livox_status EnableLivoxLidarFusaFunciont(uint32_t handle, LivoxLidarAsyncControlCallback cb, void* client_data);
   static livox_status DisableLivoxLidarFusaFunciont(uint32_t handle, LivoxLidarAsyncControlCallback cb, void* client_data);
 
+  static livox_status StartForcedHeating(uint32_t handle, LivoxLidarAsyncControlCallback cb, void* client_data);
+  static livox_status StopForcedHeating(uint32_t handle, LivoxLidarAsyncControlCallback cb, void* client_data);
+
   static livox_status SetLivoxLidarLogParam(uint32_t handle, const LivoxLidarLogParam& log_param, LivoxLidarAsyncControlCallback cb, void* client_data);
 
   static livox_status LivoxLidarRequestReset(uint32_t handle, LivoxLidarResetCallback cb, void* client_data);
+
+  static livox_status SetLivoxLidarDebugPointCloud(uint32_t handle, bool enable, LivoxLidarLoggerCallback cb, void* client_data);
 
   /*******Upgrade Module***********/    
   static livox_status LivoxLidarRequestReboot(uint32_t handle, LivoxLidarRebootCallback cb, void* client_data);
@@ -123,6 +129,12 @@ class CommandImpl {
 
   static livox_status LivoxLidarRequestFirmwareInfo(uint32_t handle,
       LivoxLidarRequestFirmwareInfoCallback cb, void* client_data);
+private:
+  static livox_status SendSingleControlCommand(uint32_t handle, 
+                                               LivoxLidarAsyncControlCallback cb, 
+                                               void* client_data,
+                                               uint16_t command_key,
+                                               uint8_t value);
 };
 
 }  // namespace livox

@@ -22,28 +22,54 @@
 // SOFTWARE.
 //
 
-#ifndef LIVOX_IO_THREAD_H_
-#define LIVOX_IO_THREAD_H_
-#include <memory>
-#include "io_loop.h"
-#include "thread_base.h"
+#ifndef DEBUG_POINT_CLOUD_HANDLER_H_
+#define DEBUG_POINT_CLOUD_HANDLER_H_
+
+#include "base/io_thread.h"
+#include "base/noncopyable.h"
+#include "base/logging.h"
+
+#include "command_handler/command_impl.h"
+#include "comm/define.h"
+
+#include <string>
+#include <fstream>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+#include <vector>
 
 namespace livox {
 namespace lidar {
 
-class IOThread : public ThreadBase {
+class DebugPointCloudHandler {
  public:
-  IOThread() : loop_(nullptr) {}
-  virtual ~IOThread();
-  bool Init(bool enable_timer = true, bool enable_wake = true);
-  std::weak_ptr<IOLoop> GetLoop() { return loop_; }
-  void ThreadFunc();
+  DebugPointCloudHandler(std::uint32_t handle, std::string sn, std::uint8_t dev_type, std::string path);
+  ~DebugPointCloudHandler();
+  bool StoreData(uint8_t* buf, uint32_t buf_size);
+  void WriteData();
+  bool Enable(bool enable);
 
  private:
-  void Uninit();
-  std::shared_ptr<IOLoop> loop_;
+  std::uint32_t         handle_;
+  std::string           sn_;
+  std::uint8_t          dev_type_;
+  std::uint64_t         file_size_{0};
+  std::string           file_path_{""};
+  std::string           file_name_;
+  std::atomic<bool>     enable_{false};
+
+  std::vector<uint8_t>  data_;
+  std::mutex            data_mutex_;
+  std::condition_variable cv_;
+
+  std::shared_ptr<std::thread>    thread_ptr_{nullptr};
+  std::shared_ptr<std::ofstream>  file_handle_{nullptr};
+
+  static constexpr uint64_t max_file_size_ = {4ULL * 1024 * 1024 * 1024};
 };
 
 } // namespace lidar
 }  // namespace livox
-#endif  // LIVOX_IO_THREAD_H_
+
+#endif  // DEBUG_POINT_CLOUD_HANDLER_H_

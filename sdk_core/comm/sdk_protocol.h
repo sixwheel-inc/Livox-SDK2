@@ -82,6 +82,9 @@ class SdkProtocol : public Protocol {
   uint32_t GetPacketLen(uint8_t *buf);
 
   bool CheckPreamble(uint8_t *buf, uint32_t buf_size);
+ private:
+  FastCRC16 crc_16_;
+  FastCRC32 crc_32_;
 };
 } // namespace lidar
 }  // namespace livox

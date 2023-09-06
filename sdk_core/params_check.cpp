@@ -59,6 +59,10 @@ bool ParamsCheck::Check() {
 
   CheckLidarPort();
 
+  if (!CheckLidarMulticastIp()) {
+    return false;
+  }
+
   return true;
 }
 
@@ -87,6 +91,47 @@ bool ParamsCheck::CheckLidarIp() {
     lidars_ip.insert(it->lidar_net_info.lidar_ipaddr);
   }
 
+  return true;
+}
+
+bool ParamsCheck::CheckLidarMulticastIp() {
+  for (auto it = lidars_cfg_ptr_->begin(); it != lidars_cfg_ptr_->end(); ++it) {
+    if (it->host_net_info.multicast_ip.empty()) {
+      LOG_INFO("Device type:{} point cloud data and IMU data unicast is enabled.", it->device_type);
+      continue;
+    }
+    std::vector<uint8_t> vec_host_ip;
+    if (!BuildRequest::IpToU8(it->host_net_info.multicast_ip, ".", vec_host_ip)) {
+      return false;
+    }
+    std::reverse(vec_host_ip.begin(), vec_host_ip.end());
+    uint32_t net_ip = 0;
+    memcpy(&net_ip, vec_host_ip.data(), sizeof(uint8_t) * 4);
+    if (net_ip <= 0xE0000000 || net_ip > 0xEFFFFFFF) {
+      LOG_ERROR("Params check failed, lidar multicast ip error:{}", it->host_net_info.multicast_ip.c_str());
+      return false;
+    }
+    LOG_INFO("Device type:{} point cloud and IMU data multicast ip:{}", it->device_type, it->host_net_info.multicast_ip.c_str());
+  }
+
+  for (auto it = custom_lidars_cfg_ptr_->begin(); it != custom_lidars_cfg_ptr_->end(); ++it) {
+    if (it->host_net_info.multicast_ip.empty()) {
+      LOG_INFO("Lidar ip:{} point cloud data and IMU data unicast is enabled.", it->lidar_net_info.lidar_ipaddr.c_str());
+      continue;
+    }
+    std::vector<uint8_t> vec_host_ip;
+    if (!BuildRequest::IpToU8(it->host_net_info.multicast_ip, ".", vec_host_ip)) {
+      return false;
+    }
+    std::reverse(vec_host_ip.begin(), vec_host_ip.end());
+    uint32_t net_ip = 0;
+    memcpy(&net_ip, vec_host_ip.data(), sizeof(uint8_t) * 4);
+    if (net_ip <= 0xE0000000 || net_ip > 0xEFFFFFFF) {
+      LOG_ERROR("Params check failed, lidar multicast ip error:{}", it->host_net_info.multicast_ip.c_str());
+      return false;
+    }
+    LOG_INFO("Lidar ip:{} point cloud and IMU data multicast ip:{}", it->lidar_net_info.lidar_ipaddr.c_str(), it->host_net_info.multicast_ip.c_str());
+  }
   return true;
 }
 

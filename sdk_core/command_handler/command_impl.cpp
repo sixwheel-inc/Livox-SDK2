@@ -26,12 +26,16 @@
 
 #include "livox_lidar_def.h"
 #include "general_command_handler.h"
+#include "debug_point_cloud_handler/debug_point_cloud_manager.h"
 
 #include "base/logging.h"
 #include "comm/protocol.h"
 #include "comm/generate_seq.h"
 
 #include "build_request.h"
+
+#include <sstream>
+#include <inttypes.h>
 
 namespace livox {
 namespace lidar {
@@ -155,7 +159,7 @@ livox_status CommandImpl::SetLivoxLidarDualEmit(uint32_t handle, bool enable, Li
   req_len = sizeof(key_num) + sizeof(uint16_t);
 
   LivoxLidarKeyValueParam * kv = (LivoxLidarKeyValueParam *)&req_buff[req_len];
-  kv->key = static_cast<uint16_t>(kKeyDualEmitEnable);
+  kv->key = static_cast<uint16_t>(kKeyDualEmitEn);
   kv->length = sizeof(uint8_t);
   if (enable) {
     kv->value[0] = 0x01;
@@ -180,7 +184,7 @@ livox_status CommandImpl::EnableLivoxLidarPointSend(uint32_t handle, LivoxLidarA
   req_len = sizeof(key_num) + sizeof(uint16_t);
 
   LivoxLidarKeyValueParam * kv = (LivoxLidarKeyValueParam *)&req_buff[req_len];
-  kv->key = static_cast<uint16_t>(kKeyPointSendEnable);
+  kv->key = static_cast<uint16_t>(kKeyPointSendEn);
   kv->length = sizeof(uint8_t);
   kv->value[0] = 0x00;
   req_len += sizeof(LivoxLidarKeyValueParam);
@@ -201,7 +205,7 @@ livox_status CommandImpl::DisableLivoxLidarPointSend(uint32_t handle, LivoxLidar
   req_len = sizeof(key_num) + sizeof(uint16_t);
 
   LivoxLidarKeyValueParam * kv = (LivoxLidarKeyValueParam *)&req_buff[req_len];
-  kv->key = static_cast<uint16_t>(kKeyPointSendEnable);
+  kv->key = static_cast<uint16_t>(kKeyPointSendEn);
   kv->length = sizeof(uint8_t);
   kv->value[0] = 0x01;
   req_len += sizeof(LivoxLidarKeyValueParam);
@@ -360,7 +364,7 @@ livox_status CommandImpl::EnableLivoxLidarFov(uint32_t handle, uint8_t fov_en, L
   req_len = sizeof(key_num) + sizeof(uint16_t);
 
   LivoxLidarKeyValueParam * kv = (LivoxLidarKeyValueParam *)&req_buff[req_len];
-  kv->key = static_cast<uint16_t>(kKeyRoiEn);
+  kv->key = static_cast<uint16_t>(kKeyFovCfgEn);
   kv->length = sizeof(uint8_t);
   kv->value[0] = fov_en;
 
@@ -382,7 +386,7 @@ livox_status CommandImpl::DisableLivoxLidarFov(uint32_t handle, LivoxLidarAsyncC
   req_len = sizeof(key_num) + sizeof(uint16_t);
 
   LivoxLidarKeyValueParam * kv = (LivoxLidarKeyValueParam *)&req_buff[req_len];
-  kv->key = static_cast<uint16_t>(kKeyRoiEn);
+  kv->key = static_cast<uint16_t>(kKeyFovCfgEn);
   kv->length = sizeof(uint8_t);
   kv->value[0] = 0x00;
   
@@ -429,7 +433,7 @@ livox_status CommandImpl::SetLivoxLidarFuncIOCfg(uint32_t handle, const FuncIOCf
   req_len = sizeof(key_num) + sizeof(uint16_t);
 
   LivoxLidarKeyValueParam * kv = (LivoxLidarKeyValueParam *)&req_buff[req_len];
-  kv->key = static_cast<uint16_t>(kKeyFuncIOCfg);
+  kv->key = static_cast<uint16_t>(kKeyFuncIoCfg);
   kv->length = sizeof(FuncIOCfg);
 
   FuncIOCfg* func_io_cfg_val = (FuncIOCfg*)&kv->value;
@@ -556,7 +560,6 @@ livox_status CommandImpl::SetLivoxLidarGlassHeat(uint32_t handle, LivoxLidarGlas
                     MakeCommandCallback<LivoxLidarAsyncControlResponse>(cb, client_data));
 }
 
-
 livox_status CommandImpl::EnableLivoxLidarImuData(uint32_t handle, LivoxLidarAsyncControlCallback cb, void* client_data) {
   uint8_t req_buff[kMaxCommandBufferSize] = {0};
   uint16_t req_len = 0;
@@ -643,6 +646,15 @@ livox_status CommandImpl::DisableLivoxLidarFusaFunciont(uint32_t handle, LivoxLi
                     MakeCommandCallback<LivoxLidarAsyncControlResponse>(cb, client_data));
 }
 
+livox_status CommandImpl::StartForcedHeating(uint32_t handle, LivoxLidarAsyncControlCallback cb, void* client_data) {
+  return SendSingleControlCommand(handle, cb, client_data, kKeyForceHeatEn, 0x01/*enable forced heating*/);
+}
+
+livox_status CommandImpl::StopForcedHeating(uint32_t handle, LivoxLidarAsyncControlCallback cb, void* client_data) {
+  return SendSingleControlCommand(handle, cb, client_data, kKeyForceHeatEn, 0x00/*disable forced heating*/);
+}
+
+
 livox_status CommandImpl::SetLivoxLidarLogParam(uint32_t handle, const LivoxLidarLogParam& log_param, LivoxLidarAsyncControlCallback cb, void* client_data) {
   uint8_t req_buff[kMaxCommandBufferSize] = {0};
   uint16_t req_len = 0;
@@ -671,6 +683,25 @@ livox_status CommandImpl::LivoxLidarRequestReset(uint32_t handle, LivoxLidarRese
   return GeneralCommandHandler::GetInstance().LivoxLidarRequestReset(handle, cb, client_data);
 }
 
+livox_status CommandImpl::SetLivoxLidarDebugPointCloud(uint32_t handle, bool enable,
+                                                       LivoxLidarLoggerCallback cb, void* client_data) {
+  DebugPointCloudManager::GetInstance().Enable(enable);
+
+  LivoxLidarDebugPointCloudRequest req_buff {};
+  req_buff.enable    = enable ? 1 : 0;
+  req_buff.host_port = kHostDebugPointCloudPort; // 44332
+  req_buff.bandwidth = 0;  // units Mbps
+  sscanf(GeneralCommandHandler::GetInstance().GetLidarCfg(handle).host_net_info.host_ip.c_str(),
+                             "%" SCNu8 ".%" SCNu8 ".%" SCNu8 ".%" SCNu8, &req_buff.host_ip_addr[0]
+                                                                       , &req_buff.host_ip_addr[1]
+                                                                       , &req_buff.host_ip_addr[2]
+                                                                       , &req_buff.host_ip_addr[3]);
+  return GeneralCommandHandler::GetInstance().SendLoggerCommand(handle,
+                    kCommandIDLidarDebugPointCloudControl,
+                    reinterpret_cast<uint8_t*>(&req_buff),
+                    uint16_t(sizeof(LivoxLidarDebugPointCloudRequest)),
+                    MakeCommandCallback<LivoxLidarLoggerResponse>(cb, client_data));
+}
 // Upgrade
 livox_status CommandImpl::LivoxLidarStartUpgrade(uint32_t handle, uint8_t *data, uint16_t length,
     LivoxLidarStartUpgradeCallback cb, void* client_data) {
@@ -725,6 +756,30 @@ livox_status CommandImpl::LivoxLidarRequestReboot(uint32_t handle, LivoxLidarReb
       kCommandIDLidarRebootDevice, (uint8_t *)&reboot_request,
       sizeof(reboot_request), MakeCommandCallback<LivoxLidarRebootResponse>(cb,
       client_data));
+}
+
+livox_status CommandImpl::SendSingleControlCommand(uint32_t handle, 
+                                             LivoxLidarAsyncControlCallback cb, 
+                                             void* client_data,
+                                             uint16_t command_key,
+                                             uint8_t value) {
+  uint8_t req_buff[kMaxCommandBufferSize] = {0};
+  uint16_t key_num = 1;
+  uint16_t req_len = 0;
+  memcpy(&req_buff[req_len], &key_num, sizeof(key_num));
+  req_len = sizeof(key_num) + sizeof(uint16_t);
+
+  LivoxLidarKeyValueParam * kv = (LivoxLidarKeyValueParam *)&req_buff[req_len];
+  kv->key = command_key;
+  kv->length = sizeof(uint8_t);
+  kv->value[0] = value;
+  req_len += sizeof(LivoxLidarKeyValueParam);
+
+  return GeneralCommandHandler::GetInstance().SendCommand(handle,
+                    kCommandIDLidarWorkModeControl,
+                    req_buff,
+                    req_len,
+                    MakeCommandCallback<LivoxLidarAsyncControlResponse>(cb, client_data));
 }
 
 }  // namespace livox

@@ -50,19 +50,10 @@ bool Mid360CommandHandler::Init(bool is_view) {
   return true;
 }
 
-bool Mid360CommandHandler::Init(std::shared_ptr<std::vector<LivoxLidarCfg>>& lidars_cfg_ptr,
-    std::shared_ptr<std::vector<LivoxLidarCfg>>& custom_lidars_cfg_ptr) {
-  for (auto it = lidars_cfg_ptr->begin(); it != lidars_cfg_ptr->end(); ++it) {
-    if (it->device_type == kLivoxLidarTypeMid360) {
-      general_lidar_cfg_ = *it;
-      break;
-    }
-  }
-
-  for (auto it = custom_lidars_cfg_ptr->begin(); it != custom_lidars_cfg_ptr->end(); ++it) {
-    if (it->device_type == kLivoxLidarTypeMid360) {
-      uint32_t handle = inet_addr(it->lidar_net_info.lidar_ipaddr.c_str());
-      lidars_custom_[handle] = *it;
+bool Mid360CommandHandler::Init(const std::map<uint32_t, LivoxLidarCfg>& custom_lidars_cfg_map) {
+  for (const auto& it : custom_lidars_cfg_map) {
+    if (it.second.device_type == kLivoxLidarTypeMid360 && custom_lidars_.find(it.first) == custom_lidars_.end()) {
+      custom_lidars_[it.first] = it.second;
     }
   }
   return true;
@@ -117,12 +108,11 @@ void Mid360CommandHandler::UpdateLidarCfg(const uint32_t handle, const uint16_t 
     }
   }
   
-  if (lidars_custom_.find(handle) != lidars_custom_.end()) {
-    const LivoxLidarCfg& lidar_cfg = lidars_custom_[handle];
+  if (custom_lidars_.find(handle) != custom_lidars_.end()) {
+    const LivoxLidarCfg& lidar_cfg = custom_lidars_[handle];
     SetCustomLidar(handle, lidar_cmd_port, lidar_cfg);
     return;
   }
-  SetGeneralLidar(handle, lidar_cmd_port);
 }
 
 void Mid360CommandHandler::SetViewLidar(const ViewLidarIpInfo& view_lidar_info) {
@@ -145,24 +135,7 @@ void Mid360CommandHandler::SetViewLidar(const ViewLidarIpInfo& view_lidar_info) 
 void Mid360CommandHandler::SetCustomLidar(const uint32_t handle, const uint16_t lidar_cmd_port, const LivoxLidarCfg& lidar_cfg) {
   uint8_t req_buff[kMaxCommandBufferSize] = {0};
   uint16_t req_len = 0;
-  if (!BuildRequest::BuildUpdateLidarCfgRequest(lidar_cfg, req_buff, req_len)) {
-    LOG_ERROR("Build update lidar cfg request failed.");
-    return;
-  }
-
-  struct in_addr addr;
-  addr.s_addr = handle;
-  std::string lidar_ip = inet_ntoa(addr);
-  uint16_t seq = GenerateSeq::GetSeq();
-  Command command(seq, kCommandIDLidarWorkModeControl, kCommandTypeCmd, kHostSend, req_buff, req_len, handle,
-      lidar_ip, MakeCommandCallback<LivoxLidarAsyncControlResponse>(Mid360CommandHandler::UpdateLidarCallback, this));
-  SendCommand(command, lidar_cmd_port);
-}
-
-void Mid360CommandHandler::SetGeneralLidar(const uint32_t handle, const uint16_t lidar_cmd_port) {
-  uint8_t req_buff[kMaxCommandBufferSize] = {0};
-  uint16_t req_len = 0;
-  if (!BuildRequest::BuildUpdateMid360LidarCfgRequest(general_lidar_cfg_, req_buff, req_len)) {
+  if (!BuildRequest::BuildUpdateMid360LidarCfgRequest(lidar_cfg, req_buff, req_len)) {
     LOG_ERROR("Build update lidar cfg request failed.");
     return;
   }

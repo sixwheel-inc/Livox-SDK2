@@ -55,19 +55,13 @@ typedef struct {
 } LivoxLidarNetInfo;
 
 typedef struct {
-  std::string cmd_data_ip;
+  std::string host_ip;
+  std::string multicast_ip;
+
   uint16_t cmd_data_port;
-
-  std::string push_msg_ip;
   uint16_t push_msg_port;
-
-  std::string point_data_ip;
   uint16_t point_data_port;
-
-  std::string imu_data_ip;
   uint16_t imu_data_port;
-
-  std::string log_data_ip;
   uint16_t log_data_port;
 } HostNetInfo;
 
@@ -88,6 +82,10 @@ typedef struct {
   std::string lidar_log_path;
 } LivoxLidarLoggerCfg;
 
+typedef struct {
+  bool master_sdk;
+} LivoxLidarSdkFrameworkCfg;
+
 typedef enum {
   /**
    * Lidar command set, set the working mode and sub working mode of a LiDAR.
@@ -97,22 +95,23 @@ typedef enum {
   
   kCommandIDLidarWorkModeControl = 0x0100,
   kCommandIDLidarGetInternalInfo = 0x0101,
-  kCommandIDLidarPushMsg = 0x0102,
+  kCommandIDLidarPushMsg         = 0x0102,
 
-  kCommandIDLidarRebootDevice = 0x0200,
-  kCommandIDLidarResetDevice = 0x0201,
-  kCommandIDLidarSetPPSSync = 0x0202,
+  kCommandIDLidarRebootDevice    = 0x0200,
+  kCommandIDLidarResetDevice     = 0x0201,
+  kCommandIDLidarSetPPSSync      = 0x0202,
 
-  kCommandIDLidarPushLog = 0x0300,
-  kCommandIDLidarCollectionLog = 0x0301,
-  kCommandIDLidarLogSysTimeSync = 0x0302,
+  kCommandIDLidarPushLog                = 0x0300,
+  kCommandIDLidarCollectionLog          = 0x0301,
+  kCommandIDLidarLogSysTimeSync         = 0x0302,
+  kCommandIDLidarDebugPointCloudControl = 0x0303,
 
 
-  kCommandIDGeneralRequestUpgrade = 0x0400,
-  kCommandIDGeneralXferFirmware = 0x0401,
-  kCommandIDGeneralCompleteXferFirmware = 0x0402,
+  kCommandIDGeneralRequestUpgrade         = 0x0400,
+  kCommandIDGeneralXferFirmware           = 0x0401,
+  kCommandIDGeneralCompleteXferFirmware   = 0x0402,
   kCommandIDGeneralRequestUpgradeProgress = 0x0403,
-  kCommandIDGeneralRequestFirmwareInfo = 0xFF,
+  kCommandIDGeneralRequestFirmwareInfo    = 0xFF,
   kCommandIDLidarCommandCount
 } LidarCommandID;
 
@@ -173,34 +172,38 @@ typedef struct {
   uint16_t lidar_port;
 } HostIpInfoValue;
 
-static const uint16_t kDetectionPort = 56000;
-static const uint16_t kDetectionListenPort = 56001;
+static const uint16_t kDetectionPort           = 56000;
+static const uint16_t kDetectionListenPort     = 56001;
+static const uint16_t kHostDebugPointCloudPort = 44332;
 
-static const uint16_t kHAPCmdPort = 56000;
+static const uint16_t kHAPCmdPort       = 56000;
+static const uint16_t kHAPPushMsgPort   = 56000;
 static const uint16_t kHAPPointDataPort = 57000;
-static const uint16_t kHAPIMUPort = 58000;
-static const uint16_t kHAPLogPort = 59000;
+static const uint16_t kHAPIMUPort       = 58000;
+static const uint16_t kHAPLogPort       = 59000;
 
-static const uint16_t kLogPort = 59000;
+/** kLogPort, which is the log port to be banned. */
+static const uint16_t kLogPort = 0;
 
 static const uint16_t kHAPLidarCmdPort = 56000;
 
-static const uint16_t kMid360LidarCmdPort = 56100;
-static const uint16_t kMid360LidarPushMsgPort = 56200;
-static const uint16_t kMid360LidarPointCloudPort = 56300;
-static const uint16_t kMid360LidarImuDataPort = 56400;
-static const uint16_t kMid360LidarLogPort = 56500;
+static const uint16_t kMid360LidarCmdPort             = 56100;
+static const uint16_t kMid360LidarPushMsgPort         = 56200;
+static const uint16_t kMid360LidarPointCloudPort      = 56300;
+static const uint16_t kMid360LidarImuDataPort         = 56400;
+static const uint16_t kMid360LidarLogPort             = 56500;
+static const uint16_t kMid360LidarDebugPointCloudPort = 60301;
 
-static const uint16_t kMid360HostCmdPort = 56101;
-static const uint16_t kMid360HostPushMsgPort = 56201;
+static const uint16_t kMid360HostCmdPort        = 56101;
+static const uint16_t kMid360HostPushMsgPort    = 56201;
 static const uint16_t kMid360HostPointCloudPort = 56301;
-static const uint16_t kMid360HostImuDataPort = 56401;
-static const uint16_t kMid360HostLogPort = 56501;
+static const uint16_t kMid360HostImuDataPort    = 56401;
+static const uint16_t kMid360HostLogPort        = 56501;
 
-static const uint16_t kPaLidarCmdPort = 9347;
+static const uint16_t kPaLidarCmdPort        = 9347;
 static const uint16_t kPaLidarPointCloudPort = 10000;
-static const uint16_t kPaLidarFaultPort = 10001;
-static const uint16_t kPaLidarLogPort = 1002;
+static const uint16_t kPaLidarFaultPort      = 10001;
+static const uint16_t kPaLidarLogPort        = 1002;
 
 static const uint16_t kPaHostFaultPort = 42867;
 
@@ -227,6 +230,13 @@ typedef struct {
 } EnableDeviceLoggerRequest;
 
 typedef struct {
+  std::string   sn;
+  std::uint8_t  dev_type;
+  std::string   lidar_ip;
+  std::uint16_t cmd_port;
+} LidarDeviceInfo;
+
+typedef struct {
   uint8_t log_type;         // 0
   uint8_t file_index;       // file index
   uint8_t file_num;
@@ -244,6 +254,13 @@ typedef struct {
   uint8_t file_index;      // 0 for cfg, 1 for log
   uint32_t trans_index;     //sequence of trans file
 } DeviceLoggerFilePushReponse;
+
+enum class Flag : uint8_t {
+  kNull,
+  kCreateFile,
+  kEndFile,
+  kTransferData
+};
 
 using DataCallback = std::function<void(const uint32_t handle, const uint8_t dev_type, LivoxLidarEthernetPacket *data, void *client_data)>;
 using LidarInfoCallback = std::function<void(const uint32_t, const uint8_t, const char*, void*)>;
@@ -303,6 +320,22 @@ typedef struct {
   uint16_t length;  /**< The length of firmware info string, include '\0'. */
   uint8_t info[1];  /**< Firmware info string, include '\0'. */
 } LivoxLidarRequestFirmwareInfoResponse;
+
+typedef struct {
+  uint8_t file_ver;   /**< file format version. */
+  uint8_t dev_type;   /**< the device type of the firmware. */
+  uint8_t data_type;  /**< type of data. */
+  uint8_t sn[16];
+  uint8_t rsvd[107];
+  uint16_t crc16;
+} LivoxLidarDebugPointCloudFileHeader;
+
+typedef struct {
+  uint8_t   enable;
+  uint8_t   host_ip_addr[4];
+  uint16_t  host_port;
+  uint16_t  bandwidth;
+} LivoxLidarDebugPointCloudRequest;
 
 typedef void(*LivoxLidarStartUpgradeCallback)(livox_status status, uint32_t handle,
     LivoxLidarStartUpgradeResponse* response, void* client_data);

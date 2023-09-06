@@ -34,11 +34,11 @@ namespace livox {
 namespace lidar {
 namespace util {
 
-socket_t CreateSocket(uint16_t port, bool nonblock, bool reuse_port, bool is_broadcast, std::string netif) {
+socket_t CreateSocket(uint16_t port, bool nonblock, bool reuse_port, bool is_broadcast, const std::string netif, const std::string multicast_ip) {
   int status = -1;
   int on = -1;
   int sock = -1;
-  int recv_buff_size = 1024 * 1024 * 5;
+  int recv_buff_size = 1024 * 1024 * 200;
   struct sockaddr_in servaddr;
 
   sock = socket(AF_INET, SOCK_DGRAM, 0);
@@ -73,13 +73,17 @@ socket_t CreateSocket(uint16_t port, bool nonblock, bool reuse_port, bool is_bro
   }
 
   memset(&servaddr, 0, sizeof(servaddr));
- 
+
   // Filling server information
   servaddr.sin_family    = AF_INET; // IPv4
   if (netif.empty()) {
     servaddr.sin_addr.s_addr = INADDR_ANY;
   } else {
-    servaddr.sin_addr.s_addr = inet_addr(netif.c_str());
+    if(!multicast_ip.empty()){
+      servaddr.sin_addr.s_addr = inet_addr(multicast_ip.c_str());
+    } else {
+      servaddr.sin_addr.s_addr = inet_addr(netif.c_str());
+    }
   }
   servaddr.sin_port = htons(port);
 
@@ -100,6 +104,15 @@ socket_t CreateSocket(uint16_t port, bool nonblock, bool reuse_port, bool is_bro
     }
   }
 
+  if (!multicast_ip.empty()) {
+    struct ip_mreq mreq;
+    bzero(&mreq, sizeof(struct ip_mreq));
+    mreq.imr_interface.s_addr = inet_addr(netif.c_str());
+    mreq.imr_multiaddr.s_addr = inet_addr(multicast_ip.c_str());
+    if (setsockopt(sock, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(struct ip_mreq)) == -1) {
+      printf("setsockopt failed\n");
+    }
+  }
   return sock;
 }
 

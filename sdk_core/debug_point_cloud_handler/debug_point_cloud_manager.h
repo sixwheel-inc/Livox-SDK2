@@ -22,28 +22,50 @@
 // SOFTWARE.
 //
 
-#ifndef LIVOX_IO_THREAD_H_
-#define LIVOX_IO_THREAD_H_
+#ifndef DEBUG_POINT_CLOUD_MANAGER_H_
+#define DEBUG_POINT_CLOUD_MANAGER_H_
+
+#include <functional>
 #include <memory>
-#include "io_loop.h"
-#include "thread_base.h"
+#include <mutex>
+#include <condition_variable>
+
+#include "livox_lidar_def.h"
+#include "livox_lidar_api.h"
+#include "debug_point_cloud_handler.h"
+
+#include "base/io_thread.h"
+#include "base/logging.h"
+#include "comm/define.h"
+#include "base/network/network_util.h"
 
 namespace livox {
 namespace lidar {
 
-class IOThread : public ThreadBase {
+class DebugPointCloudManager {
  public:
-  IOThread() : loop_(nullptr) {}
-  virtual ~IOThread();
-  bool Init(bool enable_timer = true, bool enable_wake = true);
-  std::weak_ptr<IOLoop> GetLoop() { return loop_; }
-  void ThreadFunc();
+  DebugPointCloudManager(const DebugPointCloudManager& other) = delete;
+  DebugPointCloudManager& operator=(const DebugPointCloudManager& other) = delete;
+  ~DebugPointCloudManager();
+
+  void AddDevice(const uint32_t handle, const DetectionData* detection_data);
+  void Handler(uint32_t handle, uint16_t lidar_port, uint8_t *buf, uint32_t buf_size);
+  bool Enable(bool enable);
+  bool SetStorePath(std::string path);
+  
+  static DebugPointCloudManager& GetInstance();
 
  private:
-  void Uninit();
-  std::shared_ptr<IOLoop> loop_;
+  DebugPointCloudManager();
+
+ private:
+  std::atomic<bool> enable_{false};
+  std::string path_;
+  std::map<uint32_t, LidarDeviceInfo> devices_info_;
+  std::map<uint32_t, std::shared_ptr<DebugPointCloudHandler>> handlers_;
 };
 
 } // namespace lidar
 }  // namespace livox
-#endif  // LIVOX_IO_THREAD_H_
+
+#endif  // DEBUG_POINT_CLOUD_MANAGER_H_

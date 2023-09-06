@@ -88,8 +88,6 @@ set(COMM_SOURCES
         comm/comm_port.cpp
         comm/sdk_protocol.cpp
         comm/generate_seq.cpp
-        comm/CRC/Crc.cpp
-        comm/CRC/Crc_Cfg.cpp
         )
 set(UPGRADE_SOURCES
         upgrade_manager.cpp
@@ -109,13 +107,16 @@ set(COMMAND_HANDLER_SOURCES
         command_handler/general_command_handler.cpp
         command_handler/hap_command_handler.cpp
         command_handler/mid360_command_handler.cpp
-        command_handler/pa_command_handler.cpp
         command_handler/build_request.cpp
         command_handler/parse_lidar_state_info.cpp
         )
+set(DEBUG_POINT_CLOUD_HANDLER_SOURCES
+        debug_point_cloud_handler/debug_point_cloud_manager.cpp
+        debug_point_cloud_handler/debug_point_cloud_handler.cpp
+        )
 
 set(LIVOX_SOURCES
-        ../3rdparty/FastCRC/FastCRC_tables.hpp
+        ../3rdparty/FastCRC/FastCRC_tables.h
         ../3rdparty/FastCRC/FastCRCsw.cpp
         ${MAIN_SOURCES}
         ${BASE_SOURCES}
@@ -124,6 +125,7 @@ set(LIVOX_SOURCES
         ${LOGGER_HANDLER_SOURCES}
         ${DATA_HANDLER_SOURCES}
         ${COMMAND_HANDLER_SOURCES}
+        ${DEBUG_POINT_CLOUD_HANDLER_SOURCES}
         )
 
 target_sources(${SDK_LIBRARY_STATIC}

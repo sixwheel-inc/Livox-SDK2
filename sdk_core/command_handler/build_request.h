@@ -56,6 +56,7 @@ class BuildRequest {
   static bool IpToU8(const std::string& src, const std::string& seq, std::vector<uint8_t>& result);
  private:
   static bool InitLidarIpinfoVal(const LivoxLidarIpInfo& lidar_ip_config, LivoxLidarIpInfoValue* lidar_ipinfo_val_ptr);
+  static bool InitMulticastHostIpAddr(const std::string& multicast_ip, HostIpInfoValue* host_ipinfo_val_ptr);
   static bool InitHostIpAddr(const std::string& host_ip, HostIpInfoValue* host_ipinfo_val_ptr);
 };
 

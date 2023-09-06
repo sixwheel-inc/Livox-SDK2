@@ -29,7 +29,7 @@
 namespace livox {
 namespace lidar {
 
-Firmware::Firmware() : data_(nullptr), file_size_(0), crc16_(0) {
+Firmware::Firmware() : data_(nullptr), file_size_(0) {
   memset((void *)&header_, 0, sizeof(header_));
   memset((void *)&tail_, 0, sizeof(tail_));
 }
@@ -80,7 +80,7 @@ bool Firmware::ReadAndCheckHeader() {
   file_.read((char *)(&header_), sizeof(header_));
   printf("This firmware is used for device[%d].\n", header_.device_type);
 
-  uint16_t crc = crc16_.mcrf4xx_calc(
+  uint16_t crc = crc16_.mcrf4xx(
       (uint8_t *)(&header_), (uint16_t)(sizeof(header_) - sizeof(uint16_t)));
   if (crc != header_.header_checksum) {
     printf("Header checksum[%4x %4x] error!\n", crc, header_.header_checksum);

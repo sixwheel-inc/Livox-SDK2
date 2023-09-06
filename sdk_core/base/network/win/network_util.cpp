@@ -38,11 +38,11 @@ void CloseSock(socket_t sock) {
   closesocket(sock);
 }
 
-socket_t CreateSocket(uint16_t port, bool nonblock, bool reuse_port, bool is_broadcast, std::string netif) {
+socket_t CreateSocket(uint16_t port, bool nonblock, bool reuse_port, bool is_broadcast, std::string netif, const std::string multicast_ip) {
   int status = -1;
   int on = -1;
   int sock = -1;
-  int recv_buff_size = 1024 * 1024 * 5;
+  int recv_buff_size = 1024 * 1024 * 200;
   struct sockaddr_in servaddr;
   sock = socket(AF_INET, SOCK_DGRAM, 0);
   if (sock == INVALID_SOCKET) {
@@ -100,6 +100,16 @@ socket_t CreateSocket(uint16_t port, bool nonblock, bool reuse_port, bool is_bro
       closesocket(sock);
       printf("broad cast failed\n");
       return -1;
+    }
+  }
+
+  if (!multicast_ip.empty()) {
+    struct ip_mreq mreq;
+    memset(&mreq, 0, sizeof(struct ip_mreq));
+    mreq.imr_interface.s_addr = inet_addr(netif.c_str());
+    mreq.imr_multiaddr.s_addr = inet_addr(multicast_ip.c_str());
+    if (setsockopt(sock, IPPROTO_IP, IP_ADD_MEMBERSHIP, reinterpret_cast<char*>(&mreq), sizeof(struct ip_mreq)) == -1) {
+      printf("setsockopt failed\n");
     }
   }
 

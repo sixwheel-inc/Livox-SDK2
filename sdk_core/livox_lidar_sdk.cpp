@@ -72,35 +72,34 @@ bool LivoxLidarSdkInit(const char* path, const char* host_ip, const LivoxLidarLo
   }
 #endif // WIN32
 
-  do {
-    InitLogger();
+  InitLogger();
 
-    if (path == NULL && host_ip == NULL) {
+  if (path == NULL && host_ip == NULL) {
+    return false;
+  }
+
+  if (path) {
+    std::shared_ptr<std::vector<LivoxLidarCfg>> lidars_cfg_ptr = nullptr;
+    std::shared_ptr<std::vector<LivoxLidarCfg>> custom_lidars_cfg_ptr = nullptr;
+    std::shared_ptr<LivoxLidarLoggerCfg> lidar_logger_cfg_ptr = nullptr;
+    std::shared_ptr<LivoxLidarSdkFrameworkCfg> sdk_framework_cfg_ptr = nullptr;
+
+    if (!ParseCfgFile(path).Parse(lidars_cfg_ptr, custom_lidars_cfg_ptr, lidar_logger_cfg_ptr, sdk_framework_cfg_ptr)) {
       return false;
     }
 
-    if (path) {
-      std::shared_ptr<std::vector<LivoxLidarCfg>> lidars_cfg_ptr = nullptr;
-      std::shared_ptr<std::vector<LivoxLidarCfg>> custom_lidars_cfg_ptr = nullptr;
-      std::shared_ptr<LivoxLidarLoggerCfg> lidar_logger_cfg_ptr = nullptr;
-
-      if (!ParseCfgFile(path).Parse(lidars_cfg_ptr, custom_lidars_cfg_ptr, lidar_logger_cfg_ptr)) {
-        return false;
-      }
-
-      if (!ParamsCheck(lidars_cfg_ptr, custom_lidars_cfg_ptr).Check()) {
-        return false;
-      }
-
-      if (!DeviceManager::GetInstance().Init(lidars_cfg_ptr, custom_lidars_cfg_ptr, lidar_logger_cfg_ptr)) {
-        return false;
-      }
-    } else {
-      if (!DeviceManager::GetInstance().Init(host_ip, log_cfg_info)) {
-        return false;
-      }
+    if (!ParamsCheck(lidars_cfg_ptr, custom_lidars_cfg_ptr).Check()) {
+      return false;
     }
-  } while (0);
+
+    if (!DeviceManager::GetInstance().Init(lidars_cfg_ptr, custom_lidars_cfg_ptr, lidar_logger_cfg_ptr, sdk_framework_cfg_ptr)) {
+      return false;
+    }
+  } else {
+    if (!DeviceManager::GetInstance().Init(host_ip, log_cfg_info)) {
+      return false;
+    }
+  }
 
   is_initialized = true;
   return true;
@@ -110,10 +109,12 @@ void LivoxLidarSdkUninit() {
   if (!is_initialized) {
     return;
   }
+
+  LoggerManager::GetInstance().Destory();
+  // The reason for using WSACleanup() after previous statement is that Destory() still needs to send socket messages.
 #ifdef WIN32
     WSACleanup();
 #endif // WIN32
-  LoggerManager::GetInstance().Destory();
   DeviceManager::GetInstance().Destory();
   DataHandler::GetInstance().Destory();
   GeneralCommandHandler::GetInstance().Destory();
@@ -259,6 +260,14 @@ livox_status SetLivoxLidarGlassHeat(uint32_t handle, LivoxLidarGlassHeat glass_h
   return CommandImpl::SetLivoxLidarGlassHeat(handle, glass_heat, cb, client_data);
 }
 
+livox_status StartForcedHeating(uint32_t handle, LivoxLidarAsyncControlCallback cb, void* client_data) {
+  return CommandImpl::StartForcedHeating(handle, cb, client_data);
+}
+
+livox_status StopForcedHeating(uint32_t handle, LivoxLidarAsyncControlCallback cb, void* client_data) {
+  return CommandImpl::StopForcedHeating(handle, cb, client_data);
+}
+
 livox_status EnableLivoxLidarImuData(uint32_t handle, LivoxLidarAsyncControlCallback cb, void* client_data) {
   return CommandImpl::EnableLivoxLidarImuData(handle, cb, client_data);
 }
@@ -271,6 +280,10 @@ livox_status EnableLivoxLidarFusaFunciont(uint32_t handle, LivoxLidarAsyncContro
 }
 livox_status DisableLivoxLidarFusaFunciont(uint32_t handle, LivoxLidarAsyncControlCallback cb, void* client_data) {
   return CommandImpl::DisableLivoxLidarFusaFunciont(handle, cb, client_data);
+}
+
+livox_status SetLivoxLidarDebugPointCloud(uint32_t handle, bool enable, LivoxLidarLoggerCallback cb, void* client_data) {
+  return CommandImpl::SetLivoxLidarDebugPointCloud(handle, enable, cb, client_data);
 }
 
 // reset lidar
@@ -295,6 +308,10 @@ void UpgradeLivoxLidars(const uint32_t* handle, const uint8_t lidar_num) {
   UpgradeManager::GetInstance().UpgradeLivoxLidars(handle, lidar_num);
 }
 
-livox_status LivoxLidarStartLogger(const uint32_t handle, const LivoxLidarLogType log_type, LivoxLidarLoggerStartCallback cb, void* client_data) {
+livox_status LivoxLidarStartLogger(const uint32_t handle, const LivoxLidarLogType log_type, LivoxLidarLoggerCallback cb, void* client_data) {
   return LoggerManager::GetInstance().StartLogger(handle, log_type, cb, client_data);
+}
+
+livox_status LivoxLidarStopLogger(const uint32_t handle, const LivoxLidarLogType log_type, LivoxLidarLoggerCallback cb, void* client_data) {
+  return LoggerManager::GetInstance().StopLogger(handle, log_type, cb, client_data);
 }

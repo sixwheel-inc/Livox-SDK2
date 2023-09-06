@@ -30,8 +30,11 @@
 #include "base/logging.h"
 #include "comm/protocol.h"
 #include "comm/generate_seq.h"
+
 #include "build_request.h"
 #include "general_command_handler.h"
+
+#include "parse_lidar_state_info.h"
 
 namespace livox {
 namespace lidar {
@@ -47,19 +50,10 @@ bool HapCommandHandler::Init(bool is_view) {
   return true;
 }
 
-bool HapCommandHandler::Init(std::shared_ptr<std::vector<LivoxLidarCfg>>& lidars_cfg_ptr,
-    std::shared_ptr<std::vector<LivoxLidarCfg>>& custom_lidars_cfg_ptr) {
-  for (auto it = lidars_cfg_ptr->begin(); it != lidars_cfg_ptr->end(); ++it) {
-    if (it->device_type == kLivoxLidarTypeIndustrialHAP) {
-      general_lidar_cfg_ = *it;
-      break;
-    }
-  }
-
-  for (auto it = custom_lidars_cfg_ptr->begin(); it != custom_lidars_cfg_ptr->end(); ++it) {
-    if (it->device_type == kLivoxLidarTypeIndustrialHAP) {
-      uint32_t handle = inet_addr(it->lidar_net_info.lidar_ipaddr.c_str());
-      lidars_custom_[handle] = *it;
+bool HapCommandHandler::Init(const std::map<uint32_t, LivoxLidarCfg>& custom_lidars_cfg_map) {
+  for (const auto& it : custom_lidars_cfg_map) {
+    if (it.second.device_type == kLivoxLidarTypeIndustrialHAP && custom_lidars_.find(it.first) == custom_lidars_.end()) {
+      custom_lidars_[it.first] = it.second;
     }
   }
   return true;
@@ -71,7 +65,7 @@ void HapCommandHandler::Handle(const uint32_t handle, uint16_t lidar_port, const
     OnCommandAck(handle, command);
   } else if (command.packet.cmd_type == kCommandTypeCmd) {
     LOG_INFO(" Receive Command: Id {} Seq {}", command.packet.cmd_id, command.packet.seq_num);
-    OnCommandCmd(handle, command);
+    OnCommandCmd(handle, lidar_port, command);
   }
 }
 
@@ -88,7 +82,12 @@ void HapCommandHandler::OnCommandAck(uint32_t handle, const Command &command) {
   (*command.cb)(kLivoxLidarStatusSuccess, handle, command.packet.data);
 }
 
-void HapCommandHandler::OnCommandCmd(uint32_t handle, const Command &command) {
+void HapCommandHandler::OnCommandCmd(const uint32_t handle, uint16_t lidar_port, const Command& command) {
+  if (command.packet.cmd_id == kCommandIDLidarPushMsg && lidar_port == kHAPPushMsgPort) {
+    std::string info;
+    ParseLidarStateInfo::Parse(command.packet, info);
+    GeneralCommandHandler::GetInstance().PushLivoxLidarInfo(handle, info);
+  }
 }
 
 void HapCommandHandler::UpdateLidarCfg(const ViewLidarIpInfo& view_lidar_info) {
@@ -108,13 +107,12 @@ void HapCommandHandler::UpdateLidarCfg(const uint32_t handle, const uint16_t lid
       return;
     }
   }
-  
-  if (lidars_custom_.find(handle) != lidars_custom_.end()) {
-    const LivoxLidarCfg& lidar_cfg = lidars_custom_[handle];
+
+  if (custom_lidars_.find(handle) != custom_lidars_.end()) {
+    const LivoxLidarCfg& lidar_cfg = custom_lidars_[handle];
     SetCustomLidar(handle, lidar_cmd_port, lidar_cfg);
     return;
   }
-  SetGeneralLidar(handle, lidar_cmd_port);
 }
 
 void HapCommandHandler::SetViewLidar(const ViewLidarIpInfo& view_lidar_info) {
@@ -138,23 +136,6 @@ void HapCommandHandler::SetCustomLidar(const uint32_t handle, const uint16_t lid
   uint8_t req_buff[kMaxCommandBufferSize] = {0};
   uint16_t req_len = 0;
   if (!BuildRequest::BuildUpdateLidarCfgRequest(lidar_cfg, req_buff, req_len)) {
-    LOG_ERROR("Build update lidar cfg request failed.");
-    return;
-  }
-
-  struct in_addr addr;
-  addr.s_addr = handle;
-  std::string lidar_ip = inet_ntoa(addr);
-  uint16_t seq = GenerateSeq::GetSeq();
-  Command command(seq, kCommandIDLidarWorkModeControl, kCommandTypeCmd, kHostSend, req_buff, req_len, handle,
-      lidar_ip, MakeCommandCallback<LivoxLidarAsyncControlResponse>(HapCommandHandler::UpdateLidarCallback, this));
-  SendCommand(command, lidar_cmd_port);
-}
-
-void HapCommandHandler::SetGeneralLidar(const uint32_t handle, const uint16_t lidar_cmd_port) {
-  uint8_t req_buff[kMaxCommandBufferSize] = {0};
-  uint16_t req_len = 0;
-  if (!BuildRequest::BuildUpdateLidarCfgRequest(general_lidar_cfg_, req_buff, req_len)) {
     LOG_ERROR("Build update lidar cfg request failed.");
     return;
   }
@@ -279,7 +260,7 @@ livox_status HapCommandHandler::SendLoggerCommand(const Command &command) {
   }
 
   GeneralCommandHandler::GetInstance().AddCommand(command);
-
+  
   std::vector<uint8_t> buf(kMaxCommandBufferSize + 1);
   int size = 0;
   comm_port_->Pack(buf.data(), kMaxCommandBufferSize, (uint32_t *)&size, command.packet);
